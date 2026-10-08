@@ -12,7 +12,7 @@ case "${DB_HOST}" in
     mkdir -p /run/mysqld /var/lib/mysql
     chown -R mysql:mysql /run/mysqld /var/lib/mysql
     [ -d /var/lib/mysql/mysql ] || mysql_install_db --user=mysql --datadir=/var/lib/mysql >/dev/null
-    mysqld_safe --user=mysql --bind-address=127.0.0.1 --skip-networking=0 >/var/log/mysqld.log 2>&1 &
+    mysqld_safe --user=mysql --bind-address=127.0.0.1 >/var/log/mysqld.log 2>&1 &
     for i in $(seq 1 60); do mysqladmin ping --silent 2>/dev/null && break; sleep 1; done
     # Import once. The dump is from MySQL 8; MariaDB lacks utf8mb4_0900_ai_ci, so translate it.
     # A marker table-check (not just "database exists") lets a half-finished import retry.
