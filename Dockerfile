@@ -2,7 +2,7 @@ FROM php:7.4-apache
 
 RUN docker-php-ext-install mysqli pdo_mysql
 RUN apt-get update \
-    && apt-get install -y libzip-dev zlib1g-dev \
+    && apt-get install -y libzip-dev zlib1g-dev mariadb-server \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-install zip
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
@@ -19,6 +19,11 @@ COPY ./vapi /var/www/html/vapi
 RUN mkdir -p /var/www/html/vapi/storage/framework/cache /var/www/html/vapi/storage/framework/sessions \
         /var/www/html/vapi/storage/framework/views /var/www/html/vapi/storage/logs /var/www/html/vapi/bootstrap/cache \
     && chown -R www-data:www-data /var/www/html/vapi/storage /var/www/html/vapi/bootstrap/cache
+
+# Bundled MySQL-compatible database so a single-container host (SnapDeploy etc.) works
+# without docker-compose. Override DB_HOST to use an external database instead.
+ENV DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=vapi DB_USERNAME=root DB_PASSWORD=vapi123456
+COPY ./database/vapi.sql /docker-initdb/vapi.sql
 
 RUN echo "flag{ssrf_e0pgt3az9zeqdd4fhatc}" > /flag.txt
 
