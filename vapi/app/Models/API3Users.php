@@ -11,6 +11,6 @@ class API3Users extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['username','name','password'];
+    protected $fillable = ['username','name','password','course'];
     protected $hidden = ['password'];
 }

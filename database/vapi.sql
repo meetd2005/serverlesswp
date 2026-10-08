@@ -84,15 +84,23 @@ CREATE TABLE `a_p_i3_comments` (
   `latitude` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `longitude` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `commenttext` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+  `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` int UNSIGNED DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `a_p_i3_comments`
 --
+-- `user_id` is the Excessive Data Exposure field for this challenge: a comment feed has no business
+-- returning the internal numeric id of its author, but the API does -- and that id is what feeds the
+-- Broken Authorization step against `GET api3/user/{id}`.
 
-INSERT INTO `a_p_i3_comments` (`id`, `postid`, `deviceid`, `latitude`, `longitude`, `commenttext`, `username`) VALUES
-(1, '1', 'flag{api3_0bad677bfc504c75ff72}', '45.5426274', '-122.7944111', 'THIS POST IS SH***Y', 'baduser007');
+INSERT INTO `a_p_i3_comments` (`id`, `postid`, `deviceid`, `latitude`, `longitude`, `commenttext`, `username`, `user_id`) VALUES
+(1, '1', 'flag{api3_0bad677bfc504c75ff72}', '45.5426274', '-122.7944111', 'THIS POST IS SH***Y', 'baduser007', 2),
+(2, '1', 'android-9f2c1a-4471', '45.5231548', '-122.6764816', 'Nice app, 5 stars', 'sam_support', 3),
+(3, '2', 'ios-77ab40-9823', '37.7749295', '-122.4194155', 'Can you fix the login bug?', 'finance_lee', 4),
+(4, '2', 'android-55de90-1187', '40.7127753', '-74.0059728', 'Great update this week', 'roottusk', 1),
+(5, '3', 'ios-11fa22-6630', '51.5073509', '-0.1277583', 'Who approved this release?', 'admin_ops', 5);
 
 -- --------------------------------------------------------
 
@@ -104,15 +112,24 @@ CREATE TABLE `a_p_i3_users` (
   `id` int UNSIGNED NOT NULL,
   `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `course` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `a_p_i3_users`
 --
+-- `course` mirrors API1's flag-bearing field. Only id 5 carries the flag; the others are
+-- decoys so that reaching it genuinely requires reading `user_id` off a comment (or sweeping
+-- ids 1-5, since there are only five seeded users) and then calling the Broken Authorization
+-- endpoint with your own credentials against someone else's id.
 
-INSERT INTO `a_p_i3_users` (`id`, `username`, `name`, `password`) VALUES
-(1, 'roottusk', 'Tushar K', '&_tUO^{FKI9-');
+INSERT INTO `a_p_i3_users` (`id`, `username`, `name`, `password`, `course`) VALUES
+(1, 'roottusk', 'Tushar K', '&_tUO^{FKI9-', 'Intro to Pentesting'),
+(2, 'baduser007', 'Negative Nancy', 'p4ss_bu007', 'Complaints 101'),
+(3, 'sam_support', 'Sam Okafor', 'supp0rt!99', 'Customer Success Basics'),
+(4, 'finance_lee', 'Lee Park', 'l33tF1n_2024', 'Internal Finance Operations'),
+(5, 'admin_ops', 'Priya Patel', '0ps_adm1n_7', 'flag{api3_bola_7f3c9a1e5b2d04f6}');
 
 -- --------------------------------------------------------
 
@@ -505,13 +522,13 @@ ALTER TABLE `a_p_i2_users`
 -- AUTO_INCREMENT for table `a_p_i3_comments`
 --
 ALTER TABLE `a_p_i3_comments`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `a_p_i3_users`
 --
 ALTER TABLE `a_p_i3_users`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `a_p_i4_users`

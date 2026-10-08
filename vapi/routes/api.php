@@ -50,6 +50,8 @@ Route::post('api3/user','App\Http\Controllers\API3UsersController@store');
 
 Route::post('api3/user/login','App\Http\Controllers\API3UsersController@login');
 
+Route::get('api3/user/{id}','App\Http\Controllers\API3UsersController@show');
+
 Route::get('api3/comment','App\Http\Controllers\API3CommentsController@show');
 
 Route::post('api3/comment','App\Http\Controllers\API3CommentsController@store');

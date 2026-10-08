@@ -10,5 +10,5 @@ class API3Comments extends Model
     use HasFactory;
 
     public $timestamps = false;
-    protected $fillable = ['postid','deviceid','latitude','longitude','commenttext','username'];
+    protected $fillable = ['postid','deviceid','latitude','longitude','commenttext','username','user_id'];
 }
