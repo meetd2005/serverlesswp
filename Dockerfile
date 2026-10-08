@@ -1,5 +1,11 @@
 FROM php:7.4-apache
 
+# php:7.4 is based on Debian 11 (EOL): its packages now live on archive.debian.org.
+RUN sed -ri -e 's!(deb|security)\.debian\.org/debian-security!archive.debian.org/debian-security!g' \
+        -e 's!(deb|ftp)\.debian\.org/debian!archive.debian.org/debian!g' \
+        -e '/bullseye-updates/d' /etc/apt/sources.list \
+    && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+
 RUN docker-php-ext-install mysqli pdo_mysql
 RUN apt-get update \
     && apt-get install -y libzip-dev zlib1g-dev mariadb-server \
